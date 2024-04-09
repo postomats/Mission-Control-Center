@@ -1,10 +1,11 @@
 from fastapi import APIRouter
+from ..models.scheme import StatusCode
 
 
 router = APIRouter()
 
 
-@router.get('/', response_class=dict)
+@router.get('/', response_model=StatusCode)
 def index():
     return {
         'code': 200,
@@ -12,7 +13,7 @@ def index():
     }
 
 
-@router.get('healcheck', response_class=dict)
+@router.get('/healcheck', response_model=StatusCode)
 def index():
     return {
         'code': 200,
