@@ -1,0 +1,32 @@
+version: '3'
+
+services:
+  mcc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: --reload
+    ports:
+      - 80:80
+    env_file:
+      - ./test.env
+    environment:
+      POSTGRES_HOSTNAME: db
+    volumes:
+      - ./app:/code/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres
+    user: postgres
+    env_file:
+      - ./test.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - 5432:5432
