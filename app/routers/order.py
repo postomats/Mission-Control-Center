@@ -20,12 +20,12 @@ def return_orders_by_user(jwt: str, db: Session = Depends(get_db)):
 @router.post("/do")
 def create_order(
     jwt: str,
-    content: dict = Body(...),
+    content: str,
     db: Session = Depends(get_db),
 ):
     # Проверяем, что содержимое корзины передано
     if not content:
-        raise HTTPException(status_code=400, detail="Basket content is required")
+        raise HTTPException(status_code=400, detail="Требуется содержимое корзины.")
 
     # Получаем id пользователя из токена
     user_id = get_user_id_from_token(jwt)
@@ -49,11 +49,11 @@ def process_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
         # Получаем заказ из базы данных
         order = db.query(Order).filter(Order.id == order_id).first()
         if not order:
-            raise HTTPException(status_code=404, detail="Order not found")
+            raise HTTPException(status_code=404, detail="Заказ не найден.")
         if order.cell:
-            raise HTTPException(status_code=409, detail="Order has already been processed")
+            raise HTTPException(status_code=409, detail="Заказ уже был обработан.")
         if not order.status == "created":
-            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+            raise HTTPException(status_code=409, detail=f"Заказ имеет статус {order.status}.")
         #TODO: брать MAX_CELL из INFO постоматов
         MAX_CELL = 24
         existing_cells = db.query(Cell.cell_id).all()
@@ -66,7 +66,7 @@ def process_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
         if missing_cells:
             unused_cell_id = min(missing_cells)
         else:
-            HTTPException(status_code=503, detail="Sorry, all cells are currently occupied. Please try again later.")
+            HTTPException(status_code=503, detail="Извините, все ячейки в данный момент заняты. Пожалуйста, попробуйте позже.")
         new_cell = Cell(order_id=order_id, cell_id = unused_cell_id)
         db.add(new_cell)
         order.status = "processing"
@@ -80,11 +80,9 @@ def reject_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
         # Получаем заказ из базы данных
         order = db.query(Order).filter(Order.id == order_id).first()
         if not order:
-            raise HTTPException(status_code=404, detail="Order not found")
-        if order.cell:
-            raise HTTPException(status_code=409, detail="Order has already been processed")
+            raise HTTPException(status_code=404, detail="Заказ не найден.")
         if not order.status == "created":
-            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+            raise HTTPException(status_code=409, detail=f"Заказ имеет статус {order.status}.")
         new_cell = Cell(order_id=order_id, cell_id = None)
         db.add(new_cell)
         order.status = "rejected"
@@ -97,11 +95,11 @@ def deliver_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
     if is_worker(jwt):
         order = db.query(Order).filter(Order.id == order_id).first()
         if not order.status == "processing":
-            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+            raise HTTPException(status_code=409, detail=f"Заказ имеет статус {order.status}.")
         cell_id = order.cell[0].cell_id
         open_cell(cell_id)
         if not check_cell_status(cell_id):
-            raise HTTPException(status_code=403, detail="Failed to open cell")
+            raise HTTPException(status_code=403, detail="Не удалось открыть ячейку.")
         order.status = "delivered"
         db.commit()
         return {"status": True, "cell": cell_id}
@@ -117,9 +115,9 @@ def receive_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
     user_id = get_user_id_from_token(jwt)
     order = db.query(Order).filter(Order.id == order_id).first()
     if order.customer != user_id:
-        raise HTTPException(status_code=403, detail="You don't have permission to process this order")
+        raise HTTPException(status_code=403, detail="У вас нет разрешения на обработку этого заказа.")
     if not order.status == "delivered":
-            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+            raise HTTPException(status_code=409, detail=f"Заказ имеет статус {order.status}.")
     cell = order.cell[0]
     open_cell(cell.cell_id)
     opened_cell = cell.cell_id
@@ -134,9 +132,9 @@ def return_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
     user_id = get_user_id_from_token(jwt)
     order = db.query(Order).filter(Order.id == order_id).first()
     if order.customer != user_id:
-        raise HTTPException(status_code=403, detail="You don't have permission to process this order")
+        raise HTTPException(status_code=403, detail="У вас нет разрешения на обработку этого заказа.")
     if not order.status == "received":
-            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+            raise HTTPException(status_code=409, detail=f"Заказ имеет статус {order.status}.")
     #TODO: брать MAX_CELL из INFO постоматов
     MAX_CELL = 24
     existing_cells = db.query(Cell.cell_id).all()
@@ -150,7 +148,7 @@ def return_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
         unused_cell_id = min(missing_cells)
         print(unused_cell_id)   
     else:
-        HTTPException(status_code=503, detail="Sorry, all cells are currently occupied. Please try again later.")
+        HTTPException(status_code=503, detail="Извините, все ячейки в данный момент заняты. Пожалуйста, попробуйте позже.")
     cell = order.cell[0]
     open_cell(unused_cell_id)
     cell.cell_id = unused_cell_id
@@ -164,7 +162,7 @@ def take_back_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
     if is_worker(jwt):
         order = db.query(Order).filter(Order.id == order_id).first()
         if not order.status == "returned":
-            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+            raise HTTPException(status_code=409, detail=f"Заказ имеет статус {order.status}.")
         cell = order.cell[0]
         open_cell(cell.cell_id)
         opened_cell = cell.cell_id
@@ -182,4 +180,5 @@ def return_orders_by_user(jwt: str, db: Session = Depends(get_db)):
             .filter(Order.status !="closed", Order.status !="rejected", Order.status !="received")
             .all()
         )]
-    return orders
+        return orders
+    raise HTTPException(status_code=403, detail="Нет прав доступа для просмотра списка заказов") 
