@@ -26,7 +26,7 @@ class Order(Base):
             "returned",
             "closed",
             "rejected",
-            name="pgenum",
+            name="order_status_enum",
         )
     )
     cell = relationship("Cell", back_populates="order")
