@@ -39,6 +39,7 @@ class Order(Base):
         :return: Словарь с данными объекта User.
         """
         return {
+            "id": self.id,
             "created": self.created_date,
             "status": self.status,
             "basket": self.basket[0].content,
