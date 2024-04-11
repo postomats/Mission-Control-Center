@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 from ..models.Order import Order, Basket, Cell
 from ..models.database import get_db
 from ..utilities import get_user_id_from_token, is_worker, open_cell, check_cell_status
-
 router = APIRouter()
 
 

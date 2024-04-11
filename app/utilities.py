@@ -2,7 +2,7 @@ import jwt
 from fastapi import HTTPException
 from .SETTINGS import JWT_KEY, USER_APP_IP, CELLS_APP_IP
 import requests
-
+from pydantic import EmailStr
 
 def get_user_info(jwt: str):
     response = requests.get(f"{USER_APP_IP}/me?token={jwt}")
@@ -38,3 +38,17 @@ def check_cell_status(cell_id):
     res = requests.get(f"{CELLS_APP_IP}/{cell_id}/status")
     return res.json()
 
+
+def open_all_cells():
+    requests.get(f"{CELLS_APP_IP}/open_all")
+
+
+def is_admin(jwt: str):
+    user_data = get_user_info(jwt)
+    role = user_data.get("role")
+    if role != "Admin":
+        raise HTTPException(status_code=403, detail="You not admin, bro. Go brr")
+    return True
+
+def change_role(jwt: str, email: EmailStr, role: str):
+    return requests.put(f"{USER_APP_IP}/change_role?jwt={jwt}&email={email}&role={role}").json()
