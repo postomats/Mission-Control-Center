@@ -108,8 +108,8 @@ def deliver_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
         return {"status": True, "cell": cell_id}
 
 
-@router.get("/{order_id}/is_open")
-def is_open_cell(jwt: str, order_id: int, cell_id: int):
+@router.get("/{cell_id}/is_open")
+def is_open_cell(cell_id: int):
     return {"status": check_cell_status(cell_id)}
 
 
@@ -119,16 +119,15 @@ def receive_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
     order = db.query(Order).filter(Order.id == order_id).first()
     if order.customer != user_id:
         raise HTTPException(status_code=403, detail="You don't have permission to process this order")
-    if not order.status == "created":
-        raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
     if not order.status == "delivered":
             raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
     cell = order.cell[0]
     open_cell(cell.cell_id)
+    opened_cell = cell.cell_id
     order.status = "received"
     cell.cell_id = None
     db.commit()
-    return {"status": True, "cell": cell.cell_id}
+    return {"status": True, "cell": opened_cell}
 
 
 @router.put("/{order_id}/return")
@@ -158,7 +157,7 @@ def return_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
     cell.cell_id = unused_cell_id
     order.status = "returned"
     db.commit()
-    return {"status": True, "cell": cell.cell_id}
+    return {"status": True, "cell": unused_cell_id}
 
 
 @router.put("/{order_id}/take_back")
@@ -169,10 +168,11 @@ def take_back_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
             raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
         cell = order.cell[0]
         open_cell(cell.cell_id)
+        opened_cell = cell.cell_id
         cell.cell_id = None
         order.status = "closed"
         db.commit()
-        return {"status": True}
+        return {"status": True, "cell": opened_cell}
 
 
 @router.get("/orders_list")
