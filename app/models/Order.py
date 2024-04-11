@@ -9,9 +9,9 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True)
     customer = Column(Integer)
-    status = Column(Enum('created', 'processing', 'devilery', 'done', 'closed', 'rejected', name="pgenum"))
+    status = Column(Enum('created', 'processing', 'done', 'closed', 'rejected', name="pgenum"))
 
-    basket = relationship("Basket", back_populates="book")
+    basket = relationship("Basket", back_populates="order")
 
 
 class Basket(Base):
@@ -20,7 +20,7 @@ class Basket(Base):
     order_id = Column(Integer, ForeignKey('orders.id'), primary_key=True)
     content = Column(JSON)
 
-    book = relationship("Order", back_populates="basket")
+    order = relationship("Order", back_populates="basket")
     
 
 Base.metadata.create_all(bind=engine)
