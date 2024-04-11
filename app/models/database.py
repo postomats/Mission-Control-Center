@@ -2,12 +2,8 @@ from os import environ as env
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from ..SETTINGS import SQLALCHEMY_DATABASE_URL
 
-KEYS = ['POSTGRES_USER', 'POSTGRES_PASSWORD',
-        'POSTGRES_HOSTNAME', 'POSTGRES_DB']
-USER, PASSWORD, HOSTNAME, DATABASE = (env.get(i, 'test') for i in KEYS)
-# SQLALCHEMY_DATABASE_URL = f'postgresql://{USER}:{PASSWORD}@{HOSTNAME}/{DATABASE}'
-SQLALCHEMY_DATABASE_URL = "sqlite:///db.sqlite"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

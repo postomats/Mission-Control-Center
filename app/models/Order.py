@@ -18,11 +18,20 @@ class Order(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     customer = Column(Integer)
     status = Column(
-        Enum("created", "processing", "delivered", "received", "returned", "closed", "rejected", name="pgenum")
+        Enum(
+            "created",
+            "processing",
+            "delivered",
+            "received",
+            "returned",
+            "closed",
+            "rejected",
+            name="pgenum",
+        )
     )
     cell = relationship("Cell", back_populates="order")
     basket = relationship("Basket", back_populates="order")
-    
+
     def json(self):
         """
         Преобразует объект Order в словарь.
@@ -34,6 +43,7 @@ class Order(Base):
             "status": self.status,
             "basket": self.basket[0].content,
         }
+
 
 class Basket(Base):
     __tablename__ = "baskets"
