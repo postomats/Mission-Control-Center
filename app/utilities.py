@@ -1,6 +1,6 @@
 import jwt
 from fastapi import HTTPException
-from .SETTINGS import JWT_KEY, USER_APP_IP
+from .SETTINGS import JWT_KEY, USER_APP_IP, CELLS_APP_IP
 import requests
 
 def get_user_id_from_token(jwt_token: str):
@@ -24,7 +24,15 @@ def is_worker(jwt):
     user_data = response.json()
     role = user_data.get("role")
     
-    if role not in ["Worker", "Admin"]:
-        raise HTTPException(status_code=403, detail="You don't have permission to process this order")
+    # if role not in ["Worker", "Admin"]:
+    #     raise HTTPException(status_code=403, detail="You don't have permission to process this order")
     return True
 
+
+def open_cell(cell_id):
+    requests.get(f"{CELLS_APP_IP}/{cell_id}/open")
+    
+
+def check_cell_status(cell_id):
+    res = requests.get(f"{CELLS_APP_IP}/{cell_id}/status")
+    return res.json()

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from ..models.Order import Order, Basket
 from ..models.database import get_db
-from ..utilities import get_user_id_from_token, is_worker
+from ..utilities import get_user_id_from_token, is_worker, open_cell, check_cell_status
 
 router = APIRouter()
 
@@ -71,10 +71,19 @@ def reject_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
 
 @router.put("/{order_id}/deliver")
 def deliver_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
-    pass
+    if is_worker(jwt):
+        cell_id = 1
+        open_cell(cell_id)
+        if not check_cell_status(cell_id):
+            raise HTTPException(status_code=403, detail="Failed to open cell")
+        return {"status": True, "cell": cell_id}
+
+
+@router.get("/{order_id}/is_open")
+def is_open_cell(jwt: str, order_id: int, cell_id: int):
+    return {"status": check_cell_status(cell_id)}
 
 
 @router.put("/{order_id}/receive")
 def receive_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
     pass
-    
