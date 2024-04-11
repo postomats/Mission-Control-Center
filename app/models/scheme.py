@@ -34,3 +34,8 @@ class BookBase(BaseModel):
     author: str
     publication_year: int
     publisher: str
+
+
+class OrderSchema(BaseModel):
+    jwt: str
+    content: str

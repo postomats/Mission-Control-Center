@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
 from ..models.Order import Order, Basket, Cell
 from ..models.database import get_db
+from ..models.scheme import OrderSchema
 from ..utilities import get_user_id_from_token, is_worker, open_cell, check_cell_status
 router = APIRouter()
 
@@ -19,16 +20,15 @@ def return_orders_by_user(jwt: str, db: Session = Depends(get_db)):
 
 @router.post("/do")
 def create_order(
-    jwt: str,
-    content: str,
+    data: OrderSchema,
     db: Session = Depends(get_db),
 ):
     # Проверяем, что содержимое корзины передано
-    if not content:
+    if not data.content:
         raise HTTPException(status_code=400, detail="Требуется содержимое корзины.")
 
     # Получаем id пользователя из токена
-    user_id = get_user_id_from_token(jwt)
+    user_id = get_user_id_from_token(data.jwt)
     # Создаем новый заказ
     new_order = Order(customer=user_id, status="created")
     db.add(new_order)
@@ -36,7 +36,7 @@ def create_order(
     db.refresh(new_order)
 
     # Создаем запись в корзине для нового заказа
-    new_basket = Basket(order_id=new_order.id, content=content)
+    new_basket = Basket(order_id=new_order.id, content=data.content)
     db.add(new_basket)
     db.commit()
 
