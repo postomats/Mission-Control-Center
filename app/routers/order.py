@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.orm import Session
-
-from ..models.Order import Order, Basket
+from ..models.Order import Order, Basket, Cell
 from ..models.database import get_db
 from ..utilities import get_user_id_from_token, is_worker, open_cell, check_cell_status
 
@@ -11,11 +10,11 @@ router = APIRouter()
 @router.get("/list")
 def return_orders_by_user(jwt: str, db: Session = Depends(get_db)):
     user_id = get_user_id_from_token(jwt)
-    orders = (
+    orders = [order.json() for order in (
         db.query(Order)
         .filter(Order.customer == user_id, Order.status != "closed")
         .all()
-    )
+    )]
     return orders
 
 
@@ -52,6 +51,25 @@ def process_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
         order = db.query(Order).filter(Order.id == order_id).first()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
+        if order.cell:
+            raise HTTPException(status_code=409, detail="Order has already been processed")
+        if not order.status == "created":
+            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+        #TODO: брать MAX_CELL из INFO постоматов
+        MAX_CELL = 24
+        existing_cells = db.query(Cell.cell_id).all()
+        existing_cells = {cell[0] for cell in existing_cells}
+        #TODO: брать SERVICE_CELL из INFO постоматов
+        SERVICE_CELL = 3
+        existing_cells.add(SERVICE_CELL)
+        missing_cells = [cell for cell in range(1, MAX_CELL + 1) if cell not in existing_cells]
+        
+        if missing_cells:
+            unused_cell_id = min(missing_cells)
+        else:
+            HTTPException(status_code=503, detail="Sorry, all cells are currently occupied. Please try again later.")
+        new_cell = Cell(order_id=order_id, cell_id = unused_cell_id)
+        db.add(new_cell)
         order.status = "processing"
         db.commit()
         return {"status": True}
@@ -64,6 +82,12 @@ def reject_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
         order = db.query(Order).filter(Order.id == order_id).first()
         if not order:
             raise HTTPException(status_code=404, detail="Order not found")
+        if order.cell:
+            raise HTTPException(status_code=409, detail="Order has already been processed")
+        if not order.status == "created":
+            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+        new_cell = Cell(order_id=order_id, cell_id = None)
+        db.add(new_cell)
         order.status = "rejected"
         db.commit()
         return {"status": True}
@@ -72,10 +96,15 @@ def reject_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
 @router.put("/{order_id}/deliver")
 def deliver_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
     if is_worker(jwt):
-        cell_id = 1
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order.status == "processing":
+            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+        cell_id = order.cell[0].cell_id
         open_cell(cell_id)
         if not check_cell_status(cell_id):
             raise HTTPException(status_code=403, detail="Failed to open cell")
+        order.status = "delivered"
+        db.commit()
         return {"status": True, "cell": cell_id}
 
 
@@ -86,4 +115,72 @@ def is_open_cell(jwt: str, order_id: int, cell_id: int):
 
 @router.put("/{order_id}/receive")
 def receive_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
-    pass
+    user_id = get_user_id_from_token(jwt)
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if order.customer != user_id:
+        raise HTTPException(status_code=403, detail="You don't have permission to process this order")
+    if not order.status == "created":
+        raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+    if not order.status == "delivered":
+            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+    cell = order.cell[0]
+    open_cell(cell.cell_id)
+    order.status = "received"
+    cell.cell_id = None
+    db.commit()
+    return {"status": True, "cell": cell.cell_id}
+
+
+@router.put("/{order_id}/return")
+def return_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
+    user_id = get_user_id_from_token(jwt)
+    order = db.query(Order).filter(Order.id == order_id).first()
+    if order.customer != user_id:
+        raise HTTPException(status_code=403, detail="You don't have permission to process this order")
+    if not order.status == "received":
+            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+    #TODO: брать MAX_CELL из INFO постоматов
+    MAX_CELL = 24
+    existing_cells = db.query(Cell.cell_id).all()
+    existing_cells = {cell[0] for cell in existing_cells}
+    #TODO: брать SERVICE_CELL из INFO постоматов
+    SERVICE_CELL = 3
+    existing_cells.add(SERVICE_CELL)
+    missing_cells = [cell for cell in range(1, MAX_CELL + 1) if cell not in existing_cells]
+    print(missing_cells)
+    if missing_cells:
+        unused_cell_id = min(missing_cells)
+        print(unused_cell_id)   
+    else:
+        HTTPException(status_code=503, detail="Sorry, all cells are currently occupied. Please try again later.")
+    cell = order.cell[0]
+    open_cell(unused_cell_id)
+    cell.cell_id = unused_cell_id
+    order.status = "returned"
+    db.commit()
+    return {"status": True, "cell": cell.cell_id}
+
+
+@router.put("/{order_id}/take_back")
+def take_back_order(jwt: str, order_id: int, db: Session = Depends(get_db)):
+    if is_worker(jwt):
+        order = db.query(Order).filter(Order.id == order_id).first()
+        if not order.status == "returned":
+            raise HTTPException(status_code=409, detail=f"Order has the {order.status} status")
+        cell = order.cell[0]
+        open_cell(cell.cell_id)
+        cell.cell_id = None
+        order.status = "closed"
+        db.commit()
+        return {"status": True}
+
+
+@router.get("/orders_list")
+def return_orders_by_user(jwt: str, db: Session = Depends(get_db)):
+    if is_worker(jwt):
+        orders = [order.json() for order in (
+            db.query(Order)
+            .filter(Order.status !="closed", Order.status !="rejected", Order.status !="received")
+            .all()
+        )]
+    return orders
