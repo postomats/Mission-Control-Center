@@ -4,7 +4,8 @@ DEFAULT_KEY = 'test'
 
 JWT_KEY = env.get('JWT_KEY', DEFAULT_KEY)
 
-USER_APP_IP = env.get("http://centus", 'http://localhost:8001')
+USER_APP_IP = env.get("CENSUS_HOST", 'localhost:8001')
+USER_APP_IP = f'http://{USER_APP_IP}'
 CELLS_APP_IP = env.get('POSTOMAT_IP', "192.168.0.113:8000")
 CELLS_APP_IP = f'http://{CELLS_APP_IP}/cells'
 KEYS = ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_HOSTNAME", "POSTGRES_DB"]
