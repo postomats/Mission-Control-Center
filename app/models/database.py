@@ -7,8 +7,8 @@ from sqlalchemy.orm import sessionmaker
 KEYS = ['POSTGRES_USER', 'POSTGRES_PASSWORD',
         'POSTGRES_HOSTNAME', 'POSTGRES_DB']
 USER, PASSWORD, HOSTNAME, DATABASE = (env.get(i, 'test') for i in KEYS)
-SQLALCHEMY_DATABASE_URL = f'postgresql://{USER}:{PASSWORD}@{HOSTNAME}/{DATABASE}'
-
+# SQLALCHEMY_DATABASE_URL = f'postgresql://{USER}:{PASSWORD}@{HOSTNAME}/{DATABASE}'
+SQLALCHEMY_DATABASE_URL = "sqlite:///db.sqlite"
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

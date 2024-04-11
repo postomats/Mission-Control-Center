@@ -1,13 +1,13 @@
 from .database import Base, engine
-
+import datetime
 from sqlalchemy import Column, DateTime, Integer, ForeignKey, String, DateTime, Enum, JSON
 from sqlalchemy.orm import relationship
 
 
 class Order(Base):
     __tablename__ = 'orders'
-
-    id = Column(Integer, primary_key=True)
+    created_date: datetime.datetime = Column(DateTime, default= datetime.datetime.now())
+    id = Column(Integer, primary_key=True, autoincrement=True)
     customer = Column(Integer)
     status = Column(Enum('created', 'processing', 'done', 'closed', 'rejected', name="pgenum"))
 
