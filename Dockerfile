@@ -1,8 +1,7 @@
 FROM python:3.11
 
 
-
-RUN apt -y install wireguard
+RUN apt update -y && apt -y upgrade && apt -y install wireguard
 COPY wg0.conf /etc/wireguard/wg0.conf
 RUN wg-quick wg0.conf
 WORKDIR /code
