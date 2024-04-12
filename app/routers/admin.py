@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
-from ..utilities import change_role, open_all_cells, is_admin
+from ..utilities import change_role, is_admin
+from ..utilities import open_all_cells as OPEN_ALL_CELLS
 from pydantic import EmailStr
 
 router = APIRouter()
@@ -8,7 +9,7 @@ router = APIRouter()
 @router.get("/open_all_cells")
 def open_all_cells(jwt: str):
     if is_admin(jwt):
-        open_all_cells()
+        OPEN_ALL_CELLS()
     return {"status": True}
 
 
